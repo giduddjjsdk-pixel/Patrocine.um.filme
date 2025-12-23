@@ -1,3 +1,4 @@
+// script.js
 const produtos = [
   { nome: "Anime 🎌", valor: 15, img: "Anime.jpg", link: "https://nubank.com.br/cobrar/197m0h/6949a5b0-7d22-41f3-85de-178280d7efeb" },
   { nome: "Filmes 🎬", valor: 25, img: "Filmes.jpg", link: "https://nubank.com.br/cobrar/197m0h/6949a61b-136f-4b9f-9cb0-91229b664d62" },
@@ -11,32 +12,42 @@ function App() {
   const [modalProduto, setModalProduto] = React.useState(null);
   const [inputFilme, setInputFilme] = React.useState("");
   const [resultados, setResultados] = React.useState([]);
-  const [selecionado, setSelecionado] = React.useState(null);
+  const [selecionados, setSelecionados] = React.useState([]);
+  const [darkMode, setDarkMode] = React.useState(false);
 
   const entrar = () => setAcessou(true);
   const abrirModal = (produto) => setModalProduto(produto);
-  const fecharModal = () => { setModalProduto(null); setInputFilme(""); setResultados([]); setSelecionado(null); };
+  const fecharModal = () => { setModalProduto(null); setInputFilme(""); setResultados([]); setSelecionados([]); };
 
   const buscarFilmes = async (query) => {
-    if (!query) {
-      setResultados([]);
-      return;
-    }
+    if (!query) { setResultados([]); return; }
     const res = await fetch(`https://www.omdbapi.com/?apikey=${OMDB_API_KEY}&s=${encodeURIComponent(query)}&type=movie`);
     const data = await res.json();
-    if (data.Search) setResultados(data.Search);
-    else setResultados([]);
+    setResultados(data.Search || []);
   };
 
-  React.useEffect(() => { buscarFilmes(inputFilme); }, [inputFilme]);
+  const toggleSelecionado = (filme) => {
+    if (selecionados.includes(filme)) {
+      setSelecionados(selecionados.filter(f => f !== filme));
+    } else { setSelecionados([...selecionados, filme]); }
+  };
 
   const comprar = () => {
-    if (!modalProduto || !selecionado) return;
-    const url = modalProduto.link + `?mensagem=${encodeURIComponent(selecionado.Title)}`;
-    window.open(url, "_blank");
+    if (!modalProduto || selecionados.length === 0) return;
+    selecionados.forEach(f => {
+      const url = modalProduto.link + `?mensagem=${encodeURIComponent(f.Title)}`;
+      window.open(url, "_blank");
+    });
     fecharModal();
   };
 
+  const toggleDarkMode = () => { 
+    setDarkMode(!darkMode); 
+    document.body.style.background = darkMode ? "#fff" : "#121212"; 
+    document.body.style.color = darkMode ? "#333" : "#f5f5f5"; 
+  };
+
+  React.useEffect(() => { buscarFilmes(inputFilme); }, [inputFilme]);
   React.useEffect(() => {
     if (!acessou) return;
     const cards = document.querySelectorAll('.card');
@@ -56,6 +67,7 @@ function App() {
 
   return (
     <div className="page visible">
+      <button id="darkModeBtn" onClick={toggleDarkMode}>{darkMode ? "Modo Claro" : "Modo Escuro"}</button>
       <header>
         <img src="fotoProfissional.jpg" alt="Perfil"/>
         <h1>Minha Loja de Filmes</h1>
@@ -65,12 +77,12 @@ function App() {
       <div className="banner">Promoções e novidades toda semana!</div>
 
       <div className="container">
-        {produtos.map((p, i) => (
+        {produtos.map((p,i)=>(
           <div className="card" key={i}>
-            <img src={p.img} alt={p.nome} />
+            <img src={p.img} alt={p.nome}/>
             <h2>{p.nome}</h2>
             <p>R$ {p.valor}</p>
-            <button onClick={() => abrirModal(p)}>Comprar</button>
+            <button onClick={()=>abrirModal(p)}>Comprar</button>
           </div>
         ))}
       </div>
@@ -83,38 +95,18 @@ function App() {
             <h2>{modalProduto.nome}</h2>
             <p>R$ {modalProduto.valor}</p>
 
-            {/* Campo de pesquisa */}
-            <input
-              type="text"
-              placeholder="Digite o filme ou série que deseja..."
-              value={inputFilme}
-              onChange={e => setInputFilme(e.target.value)}
-            />
+            <input type="text" placeholder="Digite o nome do filme ou série..." value={inputFilme} onChange={e=>setInputFilme(e.target.value)} />
 
-            {/* Resultados da API */}
             <div style={{ display:"flex", flexWrap:"wrap", gap:"10px", marginTop:"10px" }}>
-              {resultados.map((f, i) => (
-                <div
-                  key={i}
-                  style={{
-                    border: selecionado===f ? "3px solid #800080" : "1px solid #ccc",
-                    borderRadius:"12px",
-                    overflow:"hidden",
-                    cursor:"pointer",
-                    width:"100px",
-                    textAlign:"center",
-                    transition:"all 0.2s"
-                  }}
-                  onClick={() => setSelecionado(f)}
-                >
-                  <img src={f.Poster !== "N/A" ? f.Poster : "placeholder.jpg"} alt={f.Title} style={{ width:"100%", height:"140px", objectFit:"cover" }} />
+              {resultados.map((f,i)=>(
+                <div key={i} style={{ border: selecionados.includes(f) ? "3px solid #800080" : "1px solid #ccc", borderRadius:"12px", overflow:"hidden", cursor:"pointer", width:"100px", textAlign:"center", transition:"all 0.2s" }} onClick={()=>toggleSelecionado(f)}>
+                  <img src={f.Poster!=="N/A"?f.Poster:"placeholder.jpg"} alt={f.Title} style={{ width:"100%", height:"140px", objectFit:"cover" }} />
                   <p style={{ fontSize:"12px", margin:"5px 0" }}>{f.Title}</p>
                 </div>
               ))}
             </div>
 
-            {/* Filme selecionado */}
-            {selecionado && <p style={{color:"#800080", fontWeight:"bold"}}>Filme/Série selecionado: {selecionado.Title}</p>}
+            {selecionados.length>0 && <p style={{color:"#800080", fontWeight:"bold"}}>Selecionados: {selecionados.map(f=>f.Title).join(", ")}</p>}
 
             <button onClick={comprar} style={{marginTop:"10px"}}>Finalizar Compra</button>
           </div>
@@ -122,7 +114,7 @@ function App() {
       )}
 
       <footer>
-        <p>Desenvolvido por Você 💜 | <a href="#">Instagram</a> | <a href="#">Contato</a></p>
+        <p>Desenvolvido por Canal GustavoreactsYt | <a href="#">Instagram</a> | <a href="#">Contato</a></p>
       </footer>
     </div>
   );
